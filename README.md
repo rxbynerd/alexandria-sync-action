@@ -30,7 +30,7 @@ jobs:
           space: gemnet
           path: docs
           url: https://alexandria-api.example.workers.dev
-          version: 0.1.0
+          version: 0.1.1
         env:
           CF_ACCESS_CLIENT_ID: ${{ secrets.CF_ACCESS_CLIENT_ID }}
           CF_ACCESS_CLIENT_SECRET: ${{ secrets.CF_ACCESS_CLIENT_SECRET }}

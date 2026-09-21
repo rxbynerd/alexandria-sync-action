@@ -24,7 +24,7 @@ jobs:
           space: self-test
           path: fixture
           url: https://alexandria.invalid
-          version: 0.1.0
+          version: 0.1.1
           dry-run: "true"
       - name: Check the walk found the fixture
         env:
