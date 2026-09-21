@@ -1,0 +1,68 @@
+# Canonical source for rxbynerd/alexandria-sync-action. The public repository is a mirror of this
+# directory; a change here is released by copying it there and tagging.
+#
+# The action is thin on purpose (ADR 0041): the walk, the hashing, the batching, the shared run_id
+# and the final batch that prunes all live in alx, so they have one implementation.
+name: Sync markdown to Alexandria
+description: Push this repository's markdown into an Alexandria space with alx sync.
+author: rxbynerd
+
+branding:
+  icon: upload-cloud
+  color: purple
+
+inputs:
+  space:
+    description: Slug of the Alexandria space to sync into.
+    required: true
+  path:
+    description: Directory to walk, relative to the workspace.
+    required: false
+    default: "."
+  url:
+    description: Base URL of the Alexandria deployment.
+    required: true
+  version:
+    description: Version of @rubynerd/alx to run. Pin this; latest is a moving target.
+    required: false
+    default: latest
+  dry-run:
+    description: Walk and report the batch plan without sending anything. Needs no credential.
+    required: false
+    default: "false"
+
+outputs:
+  summary:
+    description: The JSON summary alx printed, including run_id, job_ids and the per-path counts.
+    value: ${{ steps.sync.outputs.summary }}
+
+runs:
+  using: composite
+  steps:
+    - id: sync
+      shell: bash
+      env:
+        ALEXANDRIA_URL: ${{ inputs.url }}
+        ALX_VERSION: ${{ inputs.version }}
+        ALX_SPACE: ${{ inputs.space }}
+        ALX_PATH: ${{ inputs.path }}
+        ALX_DRY_RUN: ${{ inputs.dry-run }}
+      run: |
+        set -euo pipefail
+
+        args=(sync "$ALX_PATH" --space "$ALX_SPACE" --json)
+        if [ "$ALX_DRY_RUN" = "true" ]; then
+          args+=(--dry-run)
+        elif [ -z "${CF_ACCESS_CLIENT_ID:-}" ] || [ -z "${CF_ACCESS_CLIENT_SECRET:-}" ]; then
+          # Without the pair every request is answered by Access with a login page rather than by
+          # Alexandria, which reads as an unhelpful parse failure further down.
+          echo "::error::CF_ACCESS_CLIENT_ID and CF_ACCESS_CLIENT_SECRET must be set in env" >&2
+          exit 1
+        fi
+
+        summary=$(npx --yes "@rubynerd/alx@${ALX_VERSION}" "${args[@]}")
+        echo "summary=${summary}" >> "$GITHUB_OUTPUT"
+
+        # alx reports per-path issues on stderr in its human output; --json puts them in the
+        # summary instead, so the annotations and the step summary are rendered from there.
+        node "$GITHUB_ACTION_PATH/report.mjs" "$summary" >> "$GITHUB_STEP_SUMMARY"
