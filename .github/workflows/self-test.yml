@@ -1,0 +1,36 @@
+# Runs the action against this repository's own markdown on every push and pull request. The walk
+# needs no credential, so the whole path — resolving the action, fetching @rubynerd/alx from npm,
+# rendering the step summary and the annotations — is exercised on a clean runner without a
+# deployment to push to.
+name: self-test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  dry-run:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - id: sync
+        uses: ./
+        with:
+          space: self-test
+          path: fixture
+          url: https://alexandria.invalid
+          version: 0.1.0
+          dry-run: "true"
+      - name: Check the walk found the fixture
+        env:
+          SUMMARY: ${{ steps.sync.outputs.summary }}
+        run: |
+          echo "$SUMMARY" | jq -e '.dry_run == true' > /dev/null
+          echo "$SUMMARY" | jq -e '[.paths[]] | index("nested/deep.md")' > /dev/null
+          echo "$SUMMARY" | jq -e '[.paths[]] | index(".hidden.md") | not' > /dev/null
+          echo "$SUMMARY" | jq -r '.paths[]'
