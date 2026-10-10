@@ -30,6 +30,12 @@ inputs:
     description: Walk and report the batch plan without sending anything. Needs no credential.
     required: false
     default: "false"
+  commit:
+    description: >-
+      The commit the walked tree was checked out at, recorded on every source the run creates.
+      Empty sends none.
+    required: false
+    default: ${{ github.sha }}
 
 outputs:
   summary:
@@ -47,10 +53,15 @@ runs:
         ALX_SPACE: ${{ inputs.space }}
         ALX_PATH: ${{ inputs.path }}
         ALX_DRY_RUN: ${{ inputs.dry-run }}
+        ALX_COMMIT: ${{ inputs.commit }}
       run: |
         set -euo pipefail
 
         args=(sync "$ALX_PATH" --space "$ALX_SPACE" --json)
+        # An alx that predates --commit ignores the flag, so an older pinned version still runs.
+        if [ -n "$ALX_COMMIT" ]; then
+          args+=(--commit "$ALX_COMMIT")
+        fi
         if [ "$ALX_DRY_RUN" = "true" ]; then
           args+=(--dry-run)
         elif [ -z "${CF_ACCESS_CLIENT_ID:-}" ] || [ -z "${CF_ACCESS_CLIENT_SECRET:-}" ]; then
